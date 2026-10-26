@@ -1,0 +1,62 @@
+Problem 1 - Answers
+===================
+Before running these, build the database:
+    mysql -u root -p < problem1_DDL.sql
+    mysql -u root -p < problem1_DML.sql
+Then open the client:  mysql -u root -p company
+
+-------------------------------------------------------------------
+Q1.1  Insert a row in DEPARTMENT that references a row in EMPLOYEE,
+      then try to delete the referenced row.
+-------------------------------------------------------------------
+SQL:
+    INSERT INTO DEPARTMENT (Dnumber, Dname, mgr_ssn, mgr_start_date)
+    VALUES (4, 'Finance', '2304077', '2024-01-01');
+
+Output:
+    Updated Rows: 1
+
+SQL:
+    DELETE FROM EMPLOYEE WHERE ssn = '2304077';
+
+Output (error):
+    SQL Error [1451] [23000]: Cannot delete or update a parent row: a foreign key constraint fails (`company`.`department`, CONSTRAINT `department_ibfk_1` FOREIGN KEY (`mgr_ssn`) REFERENCES `employee` (`ssn`))
+
+Explanation: employee 2304077 is the manager of department 4, so he is a
+"parent" row. MySQL refuses to delete him, because department 4 would point to
+an employee that does not exist (referential integrity).
+
+-------------------------------------------------------------------
+Q1.2  Insert a row in PROJECT that references a DEPARTMENT that doesn't
+      exist yet.
+-------------------------------------------------------------------
+SQL:
+    INSERT INTO PROJECT (Pnumber, Pname, Plocation, Dno)
+    VALUES (40, 'NewProject', 'Alexandria', 99);
+
+Output (error):
+    SQL Error [1452] [23000]: Cannot add or update a child row: a foreign key constraint fails (`company`.`project`, CONSTRAINT `project_ibfk_1` FOREIGN KEY (`Dno`) REFERENCES `department` (`Dnumber`))
+
+Explanation: there is no department with Dnumber = 99, so MySQL rejects the
+row. The department must be inserted first, then the project.
+
+-------------------------------------------------------------------
+Q1.3  If mgr_ssn and Dno are both NOT NULL, how do you insert the first
+      row in EMPLOYEE or DEPARTMENT?
+-------------------------------------------------------------------
+Problem: EMPLOYEE needs an existing department, and DEPARTMENT needs an
+existing employee. Each one needs the other first (chicken and egg), so the
+first row can't be inserted normally.
+
+Solution: turn off foreign key checking, insert the first rows, turn it on.
+
+SQL (test on a copy so we do not touch the real tables):
+    DROP DATABASE IF EXISTS company_test;
+    CREATE DATABASE company_test;
+    USE company_test;
+
+    CREATE TABLE EMPLOYEE (
+        ssn CHAR(9) NOT NULL, fname VARCHAR(30), Dno INT NOT NULL,
+        PRIMARY KEY (ssn));
+    CREATE TABLE DEPARTMENT (
+        Dnumber INT NOT NULL, Dname VARCHAR(50), mgr_ssn CHAR(9) NOT
